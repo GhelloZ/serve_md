@@ -1,2 +1,5 @@
 # Build directory
 target
+
+# Private sample file
+priv_sample.md
