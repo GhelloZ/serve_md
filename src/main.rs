@@ -42,6 +42,8 @@ fn main() {
                     <title>Apps</title>
                     <style>
                         body {{ font-family: sans-serif; 
+                            background-color: #2d3748;
+                            color: white;
                             max-width: 800px; 
                             margin: auto;
                             padding: 2rem;
