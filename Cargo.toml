@@ -1,5 +1,5 @@
 [package]
-name = "md_server"
+name = "serve_md"
 version = "0.1.0"
 edition = "2021"
 
