@@ -5,7 +5,7 @@ use markdown::to_html;
 user clap::Parser;
 
 fn main() {
-    let server = Server::http("100.118.132.125:3000").unwrap();
+    let server = Server::http("0.0.0.0:3000").unwrap();
     let file_path = Path::new("./sample.md");
 
     println!("Serving markdown page at http://127.0.0.1:3000");
