@@ -1,0 +1,9 @@
+[package]
+name = "md_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tiny_http = "0.12"
+markdown = "1.0.0"
+clap = { version = "4.5.51", features = ["derive"] }
