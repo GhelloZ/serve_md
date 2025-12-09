@@ -24,6 +24,10 @@ struct Args {
     #[arg(short='b', long="background-color", default_value = "2d3748")]
     bg_col: String,
 
+    /// Title of the webpage
+    #[arg(short='t', long="title", default_value=" ")]
+    title: String,
+
     /// Path to the markdown file to host
     #[arg(default_value = "./index.md")]
     file: PathBuf,
@@ -34,6 +38,7 @@ fn main() {
     let bind_addr = format!("{}:{}", args.address, args.port);
     let text_col = format!("{}", args.text_col);
     let bg_col = format!("{}", args.bg_col);
+    let title = if args.title != " " { format!("<title>{}</title>", args.title) } else { format!("") };
 
     println!("Serving {} at http://{} ...", args.file.display(), bind_addr);
 
@@ -49,7 +54,7 @@ fn main() {
             <html>
                 <head>
                     <meta charset=\"utf-8\">
-                    <title>Apps</title>
+                    {}
                     <style>
                         body {{ font-family: sans-serif; 
                             background-color: #{};
@@ -66,7 +71,7 @@ fn main() {
                     </style>
                 </head>
                 <body>{}</body>
-            </html>", bg_col, text_col, html_content
+            </html>", title, bg_col, text_col, html_content
         );
 
         let response = Response::from_string(html_page)
