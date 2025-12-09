@@ -16,6 +16,14 @@ struct Args {
     #[arg(short='p', long="port", default_value_t = 3000)]
     port: u16,
 
+    /// Text color HEX code
+    #[arg(short='c', long="color", default_value="ffffff")]
+    text_col: String,
+
+    /// Background color HEX code
+    #[arg(short='b', long="background-color", default_value = "2d3748")]
+    bg_col: String,
+
     /// Path to the markdown file to host
     #[arg(default_value = "./index.md")]
     file: PathBuf,
@@ -24,6 +32,8 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let bind_addr = format!("{}:{}", args.address, args.port);
+    let text_col = format!("{}", args.text_col);
+    let bg_col = format!("{}", args.bg_col);
 
     println!("Serving {} at http://{} ...", args.file.display(), bind_addr);
 
@@ -42,8 +52,8 @@ fn main() {
                     <title>Apps</title>
                     <style>
                         body {{ font-family: sans-serif; 
-                            background-color: #2d3748;
-                            color: white;
+                            background-color: #{};
+                            color: #{};
                             max-width: 800px; 
                             margin: auto;
                             padding: 2rem;
@@ -56,7 +66,7 @@ fn main() {
                     </style>
                 </head>
                 <body>{}</body>
-            </html>", html_content
+            </html>", bg_col, text_col, html_content
         );
 
         let response = Response::from_string(html_page)
