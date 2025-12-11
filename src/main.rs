@@ -28,7 +28,7 @@ struct Args {
     bg_col: String,
 
     /// Title of the webpage
-    #[arg(short='t', long="title", default_value=" ")]
+    #[arg(short='t', long="title", default_value="")]
     title: String,
 
     /// Path to the markdown file to host
@@ -36,8 +36,10 @@ struct Args {
     file: PathBuf,
 }
 
-// Get system time zone. This way `date` won't be called every time the date() function
-// gets called from log()
+// Get system time zone. This way `date` will be called just once
+// on startup (if I understood how OnceLocks actually work) and store
+// the result in TZ in memory and the logs will get the timezone from
+// there instead of calling `date each time`
 #[derive(Debug)]
 struct TimeZoneInfo {
     offset_sec: i64,
@@ -67,17 +69,16 @@ fn sys_timezone() -> TimeZoneInfo {
         .arg("+%Z")
         .output()
         .expect("Failed to get system time zone code. Check manually if `date +%Z` returns something");
-
     let tz: String = String::from_utf8_lossy(&tz_output.stdout).trim().to_string();
 
-    TimeZoneInfo {
+    return TimeZoneInfo {
         offset_sec: offset,
         abbr: tz,
-    }
+    };
 }
 
 fn get_tz() -> &'static TimeZoneInfo {
-    TZ.get_or_init(sys_timezone)
+    return TZ.get_or_init(sys_timezone);
 }
 
 fn date() -> String {
@@ -88,19 +89,19 @@ fn date() -> String {
     let timestamp = (duration.as_secs() as i64 + tz.offset_sec) as u64;
 
     // Basic constants
-    const SECONDS_IN_DAY: u64 = 86400;
-    const SECONDS_IN_HOUR: u64 = 3600;
-    const SECONDS_IN_MINUTE: u64 = 60;
+    const SECONDS_PER_DAY: u64 = 86400;
+    const SECONDS_PER_HOUR: u64 = 3600;
+    const SECONDS_PER_MINUTE: u64 = 60;
     const DAYS_IN_NORMAL_YEAR: u64 = 365;
     const DAYS_IN_LEAP_YEAR: u64 = 366;
 
     // Calculate time components (HH:MM:SS)
-    let total_days = timestamp / SECONDS_IN_DAY;
-    let seconds_in_day = timestamp % SECONDS_IN_DAY;
+    let total_days = timestamp / SECONDS_PER_DAY;
+    let seconds_in_today = timestamp % SECONDS_PER_DAY;
 
-    let hour = seconds_in_day / SECONDS_IN_HOUR;
-    let minute = (seconds_in_day % SECONDS_IN_HOUR) / SECONDS_IN_MINUTE;
-    let second = seconds_in_day % SECONDS_IN_MINUTE;
+    let hour = seconds_in_today / SECONDS_PER_HOUR;
+    let minute = (seconds_in_today % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE;
+    let second = seconds_in_today % SECONDS_PER_MINUTE;
 
     // Calculate Date (Year, Month, Day)
     // Iterate years from 1970, subtracting days until we find the current year
@@ -146,6 +147,7 @@ fn date() -> String {
     );
 }
 
+// log macro (pretty sure this didn't need a comment but why not)
 macro_rules! log {
     ($($arg:tt)*) => {
         println!("\x1b[90m{} |\x1b[0m {}", date(), format_args!($($arg)*));
@@ -153,11 +155,12 @@ macro_rules! log {
 }
 
 fn main() {
+    // CLI args parsing
     let args = Args::parse();
     let bind_addr: String = format!("{}:{}", args.address, args.port);
-    let text_col: String = format!("{}", args.text_col);
-    let bg_col: String = format!("{}", args.bg_col);
-    let title: String = if args.title != " " { format!("<title>{}</title>", args.title) } else { format!("") };
+    let text_col: String = args.text_col;
+    let bg_col: String = args.bg_col;
+    let title: String = if args.title != "" { format!("<title>{}</title>", args.title) } else { args.title };
 
     let server = Server::http(&bind_addr).unwrap();
 
