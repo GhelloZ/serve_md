@@ -1,5 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
+use std::time::{SystemTime,UNIX_EPOCH};
+use std::process::Command;
+use std::sync::OnceLock;
 use tiny_http::{Server, Response, Header};
 use markdown::to_html;
 use clap::Parser;
@@ -33,18 +36,139 @@ struct Args {
     file: PathBuf,
 }
 
+// Get system time zone. This way `date` won't be called every time the date() function
+// gets called from log()
+#[derive(Debug)]
+struct TimeZoneInfo {
+    offset_sec: i64,
+    abbr: String,
+}
+
+static TZ: OnceLock<TimeZoneInfo> = OnceLock::new();
+
+fn sys_timezone() -> TimeZoneInfo {
+    // Time zone fetching
+    let offset_output = Command::new("date")
+        .arg("+%z")
+        .output()
+        .expect("Failed to get system time zone. Check manually if `date +%z` returns something");
+    let offset_str: String = String::from_utf8_lossy(&offset_output.stdout).trim().to_string();
+
+    // Calculate tz offset
+    let offset: i64 = {
+        let sign = if &offset_str[0..1] == "+" {1} else {-1};
+        let hours: i64 = offset_str[1..3].parse().unwrap_or(0);
+        let minutes: i64 = offset_str[3..5].parse().unwrap_or(0);
+        sign * (hours*3600 + minutes*60)
+    };
+
+    // Get timestamp abbreviation
+    let tz_output = Command::new("date")
+        .arg("+%Z")
+        .output()
+        .expect("Failed to get system time zone code. Check manually if `date +%Z` returns something");
+
+    let tz: String = String::from_utf8_lossy(&tz_output.stdout).trim().to_string();
+
+    TimeZoneInfo {
+        offset_sec: offset,
+        abbr: tz,
+    }
+}
+
+fn get_tz() -> &'static TimeZoneInfo {
+    TZ.get_or_init(sys_timezone)
+}
+
+fn date() -> String {
+    // Get current timestamp
+    let now = SystemTime::now();
+    let duration = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    let tz = get_tz();
+    let timestamp = (duration.as_secs() as i64 + tz.offset_sec) as u64;
+
+    // Basic constants
+    const SECONDS_IN_DAY: u64 = 86400;
+    const SECONDS_IN_HOUR: u64 = 3600;
+    const SECONDS_IN_MINUTE: u64 = 60;
+    const DAYS_IN_NORMAL_YEAR: u64 = 365;
+    const DAYS_IN_LEAP_YEAR: u64 = 366;
+
+    // Calculate time components (HH:MM:SS)
+    let total_days = timestamp / SECONDS_IN_DAY;
+    let seconds_in_day = timestamp % SECONDS_IN_DAY;
+
+    let hour = seconds_in_day / SECONDS_IN_HOUR;
+    let minute = (seconds_in_day % SECONDS_IN_HOUR) / SECONDS_IN_MINUTE;
+    let second = seconds_in_day % SECONDS_IN_MINUTE;
+
+    // Calculate Date (Year, Month, Day)
+    // Iterate years from 1970, subtracting days until we find the current year
+    let mut days_remaining = total_days;
+    let mut year = 1970;
+
+    loop {
+        // Leap year rule: Divisible by 4, unless divisible by 100 but not 400
+        let is_leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+        let days_in_year = if is_leap { DAYS_IN_LEAP_YEAR } else { DAYS_IN_NORMAL_YEAR };
+
+        if days_remaining < days_in_year {
+            break;
+        }
+        days_remaining -= days_in_year;
+        year += 1;
+    }
+
+    // Determine month and day
+    let is_leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    // Days in months: Jan, Feb, Mar, ..., Dec
+    let days_in_months = [
+        31, if is_leap { 29 } else { 28 }, 31, 30, 31, 30, 
+        31, 31, 30, 31, 30, 31
+    ];
+
+    let mut month = 1;
+    for &days in &days_in_months {
+        if days_remaining < days {
+            break;
+        }
+        days_remaining -= days;
+        month += 1;
+    }
+
+    // Remaining days is 0-indexed, so add 1 for the day of the month
+    let day = days_remaining + 1;
+
+    // Return formatted string
+    return format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}",
+        year, month, day, hour, minute, second, tz.abbr
+    );
+}
+
+macro_rules! log {
+    ($($arg:tt)*) => {
+        println!("\x1b[90m{} |\x1b[0m {}", date(), format_args!($($arg)*));
+    }
+}
+
 fn main() {
     let args = Args::parse();
-    let bind_addr = format!("{}:{}", args.address, args.port);
-    let text_col = format!("{}", args.text_col);
-    let bg_col = format!("{}", args.bg_col);
-    let title = if args.title != " " { format!("<title>{}</title>", args.title) } else { format!("") };
-
-    println!("Serving {} at http://{} ...", args.file.display(), bind_addr);
+    let bind_addr: String = format!("{}:{}", args.address, args.port);
+    let text_col: String = format!("{}", args.text_col);
+    let bg_col: String = format!("{}", args.bg_col);
+    let title: String = if args.title != " " { format!("<title>{}</title>", args.title) } else { format!("") };
 
     let server = Server::http(&bind_addr).unwrap();
 
+    log!("Serving {} at http://{} ...", args.file.display(), bind_addr);
+
     for request in server.incoming_requests(){
+        if let Some(addr) = request.remote_addr() {
+            log!("Request received from \x1b[36m{}\x1b[0m", addr);
+        } else {
+            log!("Request received from \x1b[36msomewhere \x1b[90m(idk, maybe a unix socket, maybe somewhere in Lithuania)\x1b[0m");
+        }
         let markdown = fs::read_to_string(&args.file)
             .unwrap_or_else(|_| "# File not found".into());
         let html_content = to_html(&markdown);
@@ -72,14 +196,14 @@ fn main() {
                 </head>
                 <body>{}</body>
             </html>", title, bg_col, text_col, html_content
-        );
+            );
 
-        let response = Response::from_string(html_page)
-            .with_header(Header::from_bytes(
-                    b"Content-Type",
-                    b"text/html; charset=UTF-8",
-            ).unwrap());
+                    let response = Response::from_string(html_page)
+                        .with_header(Header::from_bytes(
+                                b"Content-Type",
+                                b"text/html; charset=UTF-8",
+                        ).unwrap());
 
-        let _ = request.respond(response);
+                    let _ = request.respond(response);
     }
 }
