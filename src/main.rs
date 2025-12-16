@@ -4,7 +4,7 @@ use std::time::{SystemTime,UNIX_EPOCH};
 use std::process::Command;
 use std::sync::OnceLock;
 use tiny_http::{Server, Response, Header};
-use markdown::to_html;
+use markdown::{to_html_with_options, Options, CompileOptions};
 use clap::Parser;
 
 /// A minimal markdown web server
@@ -172,9 +172,26 @@ fn main() {
         } else {
             log!("Request received from \x1b[36msomewhere \x1b[90m(idk, maybe a unix socket, maybe somewhere in Lithuania)\x1b[0m");
         }
+
+        // Reading markdown from provided file
         let markdown = fs::read_to_string(&args.file)
-            .unwrap_or_else(|_| "# File not found".into());
-        let html_content = to_html(&markdown);
+            .unwrap_or_else(|_| {
+                log!("\x1b[91mERROR:\x1b[0m File not found");
+                return format!("# File not found");
+            });
+        // HTML Rendering
+        let html_content = to_html_with_options(&markdown, &Options {
+            compile: CompileOptions {
+                allow_dangerous_html: true,
+                ..CompileOptions::default()
+            },
+            ..Options::default()
+        }).unwrap_or_else(|msg| { // Technically superfluos since the function "technically"
+                                  // doesn't return any errors, but why not add some additional
+                                  // proper error handling
+            log!("\x1b[91mERROR:\x1b[0m Markdown rendering error: {msg:?}");
+            return format!("<pre>Markdown rendering error: {msg:?}</pre>");
+        });
 
         let html_page = format!(
             "<!DOCTYPE html>
@@ -201,12 +218,12 @@ fn main() {
             </html>", title, bg_col, text_col, html_content
             );
 
-                    let response = Response::from_string(html_page)
-                        .with_header(Header::from_bytes(
-                                b"Content-Type",
-                                b"text/html; charset=UTF-8",
-                        ).unwrap());
+        let response = Response::from_string(html_page)
+            .with_header(Header::from_bytes(
+                    b"Content-Type",
+                    b"text/html; charset=UTF-8",
+            ).unwrap());
 
-                    let _ = request.respond(response);
+        let _ = request.respond(response);
     }
 }

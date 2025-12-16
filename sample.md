@@ -19,3 +19,9 @@ int main(){
     return 0;
 }
 ```
+
+<!-- This is an html comment -->
+<script>console.log("This is a js console log")</script>
+
+<p id="test"></p>
+<script>document.getElementById("test").innerHTML = "This is the output of a js script that should render as a normal paragraph";</script>
