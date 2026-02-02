@@ -3,7 +3,7 @@ serve\_md is a simple web server written in Rust that takes a single markdown fi
 ## Installation
 The package isn't available on any package manager, so you must download it from the releases or compile it yourself. Here are the steps to get it from the releases:
 ```bash
-wget https://github.com/GhelloZ/serve_md/releases/download/v0.2.1/serve_md-linux_static -o serve_md
+wget https://github.com/GhelloZ/serve_md/releases/download/v1.1.1/serve_md-linux_static -o serve_md
 chmod +x serve_md               # use sudo if needed
 mv serve_md /usr/local/bin      # optional, preferrable if you want to call the program from anywhere in the system
 ```
