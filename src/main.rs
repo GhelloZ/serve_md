@@ -162,9 +162,9 @@ fn main() {
     let bg_col: String = args.bg_col;
     let title: String = if args.title != "" { format!("<title>{}</title>", args.title) } else { args.title };
 
-    let server = Server::http(&bind_addr).unwrap();
+    let server = Server::http(&bind_addr).expect(&format!("\x1b[91mFailed to bind to {}\x1b[0m", bind_addr));
 
-    log!("Serving {} at http://{} ...", args.file.display(), bind_addr);
+    log!("Serving {} at \x1b[36mhttp://{}\x1b[0m ...", args.file.display(), bind_addr);
 
     for request in server.incoming_requests(){
         if let Some(addr) = request.remote_addr() {
@@ -222,6 +222,10 @@ fn main() {
             .with_header(Header::from_bytes(
                     b"Content-Type",
                     b"text/html; charset=UTF-8",
+            ).unwrap())
+            .with_header(Header::from_bytes(
+                    b"Server",
+                    b"serve_md",
             ).unwrap());
 
         let _ = request.respond(response);
