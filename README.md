@@ -28,3 +28,4 @@ Additionally, you can set a port and an IP address to bind the webpage to a spec
 ```bash
 serve_md --address 192.168.0.100 --port 8080 /path/to/file
 ```
+To see a full list of features such as setting colors for text and background use `serve_md -h`
