@@ -7,6 +7,8 @@ wget https://github.com/GhelloZ/serve_md/releases/download/v1.2.0/serve_md -o se
 chmod +x serve_md
 mv serve_md /usr/local/bin      # optional, useful if you want to call the program from anywhere in the system
 ```
+The releases on github are statically compiled binaries, if you want a slightly smaller executable you should build a dynamically linked binary following the instructions below
+
 ## Build instructions
 It's a simple rust project, so you just have to download the repo and run `cargo build`
 ```bash
