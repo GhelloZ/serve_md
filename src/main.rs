@@ -34,6 +34,11 @@ struct Args {
     /// Path to the markdown file to host
     #[arg(default_value = "./index.md")]
     file: PathBuf,
+
+    /// Allows html snippets to be used, otherwise they will be either skipped by the parser or
+    /// rendered literally
+    #[arg(long)]
+    allow_html: bool,
 }
 
 // Get system time zone. This way `date` will be called just once
@@ -160,6 +165,7 @@ fn main() {
     let bind_addr: String = format!("{}:{}", args.address, args.port);
     let text_col: String = args.text_col;
     let bg_col: String = args.bg_col;
+    let allow_html: bool = args.allow_html;
     let title: String = if args.title != "" { format!("<title>{}</title>", args.title) } else { args.title };
 
     let server = Server::http(&bind_addr).expect(&format!("\x1b[91mFailed to bind to {}\x1b[0m", bind_addr));
@@ -180,18 +186,35 @@ fn main() {
                 return format!("# File not found");
             });
         // HTML Rendering
-        let html_content = to_html_with_options(&markdown, &Options {
-            compile: CompileOptions {
-                allow_dangerous_html: true,
-                ..CompileOptions::default()
-            },
-            ..Options::default()
-        }).unwrap_or_else(|msg| { // Technically superfluos since the function "technically"
-                                  // doesn't return any errors, but why not add some additional
-                                  // proper error handling
-            log!("\x1b[91mERROR:\x1b[0m Markdown rendering error: {msg:?}");
-            return format!("<pre>Markdown rendering error: {msg:?}</pre>");
-        });
+        // If the --allow-html flag is passed, the program sets allow_dangerous_html to
+        // the markdown compile options
+        let html_content;
+        if allow_html {
+            html_content = to_html_with_options(&markdown, &Options {
+                compile: CompileOptions {
+                    allow_dangerous_html: true,
+                    ..CompileOptions::default()
+                },
+                ..Options::default()
+            }).unwrap_or_else(|msg| { // Technically superfluos since the function "technically"
+                                      // doesn't return any errors, but why not add some additional
+                                      // proper error handling
+                log!("\x1b[91mERROR:\x1b[0m Markdown rendering error: {msg:?}");
+                return format!("<pre>Markdown rendering error: {msg:?}</pre>");
+            });
+        } else {
+            html_content = to_html_with_options(&markdown, &Options {
+                compile: CompileOptions {
+                    ..CompileOptions::default()
+                },
+                ..Options::default()
+            }).unwrap_or_else(|msg| { // Technically superfluos since the function "technically"
+                                      // doesn't return any errors, but why not add some additional
+                                      // proper error handling
+                log!("\x1b[91mERROR:\x1b[0m Markdown rendering error: {msg:?}");
+                return format!("<pre>Markdown rendering error: {msg:?}</pre>");
+            });
+        }
 
         let html_page = format!(
             "<!DOCTYPE html>
