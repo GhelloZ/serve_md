@@ -1,7 +1,11 @@
 # serve\_md
 serve\_md is a simple web server written in Rust that takes a single markdown file and hosts a basic static html page.
 ## Installation
-The package isn't available on any package manager, so you must download it from the releases or compile it yourself. Here are the steps to get it from the releases:
+serve_md is currently only packaged on the AUR and you can install it using `yay` or any other AUR helper
+```bash
+yay -S serve_md
+```
+If you use any non arch based distro you can download the latest release directly from the releases page on github following the instructions below
 ```bash
 wget https://github.com/GhelloZ/serve_md/releases/download/v1.2.0/serve_md -o serve_md
 chmod +x serve_md
